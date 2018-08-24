@@ -7,11 +7,10 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.io.BooleanWritable;
 import org.apache.hadoop.io.BytesWritable;
+import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
-import org.shersfy.datahub.commons.meta.HdfsMeta;
 import org.shersfy.datahub.commons.utils.FileUtil;
-import org.shersfy.datahub.fs.client.service.RPCClient;
-import org.shersfy.datahub.fs.protocols.FsStreamService;
+import org.shersfy.datahub.fs.protocols.StandardService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,16 +21,28 @@ import org.springframework.web.bind.annotation.RestController;
 public class FsClientController extends BaseController{
     
     @Autowired
-    private RPCClient client;
+    private StandardService standardService;
     
     @GetMapping("/upload/local")
     public Object uploadLocal(String src, String tar) {
-        FsStreamService service = client.getFsStreamService();
-        service.connect(null);
-        BooleanWritable res = service.createNewFile(new Text(FileUtil.concat(tar, FilenameUtils.getName(src))));
+        return upload(null, src, tar);
+    }
+    
+    @GetMapping("/upload/hdfs")
+    public Object uploadHdfs(String src, String tar) {
+        return upload(1L, src, tar);
+    }
+
+    protected Object upload(Long resId, String src, String tar) {
+        
+        Text key = standardService.fsConnect(new Text("myclient"), resId==null?null:new LongWritable(resId));
+        Text path = new Text(FileUtil.concat(tar, FilenameUtils.getName(src)));
+        
+        BooleanWritable res = standardService.fsCreateNewFile(key, path);
         if(!res.get()) {
             return "error";
         }
+        
         try {
             BytesWritable bytes = new BytesWritable();
             InputStream input = new FileInputStream(src);
@@ -39,46 +50,16 @@ public class FsClientController extends BaseController{
             int len = 0;
             while((len = input.read(cache))!=-1) {
                 bytes.set(cache, 0, len);
-                service.write(bytes);
+                standardService.fsWrite(key, bytes);
             }
             IOUtils.closeQuietly(input);
         } catch (Exception e) {
            e.printStackTrace();
+        } finally {
+            standardService.fsClose(key);
         }
-        
-        service.closeOutputStream();
         
         return tar;
     }
     
-    @GetMapping("/upload/hdfs")
-    public Object uploadHdfs(String src, String tar) {
-        FsStreamService service = client.getFsStreamService();
-        HdfsMeta meta = new HdfsMeta();
-        meta.setUserName("hdfs");
-        meta.setUrl("hdfs://192.168.186.129:9000/");
-        service.connect(new Text(meta.toString()));
-        BooleanWritable res = service.createNewFile(new Text(FileUtil.concat(tar, FilenameUtils.getName(src))));
-        if(!res.get()) {
-            return "error";
-        }
-        try {
-            BytesWritable bytes = new BytesWritable(new byte[2048]);
-            InputStream input = new FileInputStream(src);
-            byte[] cache = new byte[2048];
-            int len = 0;
-            while((len = input.read(cache))!=-1) {
-                bytes.set(cache, 0, len);
-                service.write(bytes);
-            }
-            IOUtils.closeQuietly(input);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        
-        service.closeOutputStream();
-        
-        return tar;
-    }
-
 }

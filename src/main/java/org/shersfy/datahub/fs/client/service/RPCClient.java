@@ -8,11 +8,11 @@ import javax.annotation.PostConstruct;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.ipc.RPC;
 import org.shersfy.datahub.fs.client.config.RPCClientConfig;
-import org.shersfy.datahub.fs.protocols.FsStreamService;
 import org.shersfy.datahub.fs.protocols.StandardService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -37,19 +37,8 @@ public class RPCClient {
         
     }
     
-    public FsStreamService getFsStreamService() {
-        FsStreamService fsStreamService = null;
-        InetSocketAddress addr = new InetSocketAddress(config.getFsServiceHost(), config.getFsServicePort());
-        try {
-            fsStreamService = RPC.getProxy(FsStreamService.class, FsStreamService.versionID, addr, new Configuration(false));
-        } catch (IOException e) {
-            logger.error("", e);
-        }
-        
-        return fsStreamService;
-    }
-    
-    public StandardService getStandardService() {
+    @Bean
+    public StandardService standardService() {
         return standardService;
     }
 
