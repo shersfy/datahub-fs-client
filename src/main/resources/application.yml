@@ -23,6 +23,12 @@ spring:
       max-chunk-size: 0
       
 # RPC
+rpc:
+  client:
+    connect:
+      server:
+        port: 8899
+        fs-service-port: 8877
 
 # logging
 logging:
