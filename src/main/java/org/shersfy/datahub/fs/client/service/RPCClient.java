@@ -23,7 +23,6 @@ public class RPCClient {
     @Autowired
     private RPCClientConfig config;
     
-    @Autowired
     private StandardService standardService;
     
     @PostConstruct

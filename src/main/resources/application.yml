@@ -27,7 +27,9 @@ rpc:
   client:
     connect:
       server:
+        host: localhost
         port: 8899
+        fs-service-host: localhost
         fs-service-port: 8877
 
 # logging
