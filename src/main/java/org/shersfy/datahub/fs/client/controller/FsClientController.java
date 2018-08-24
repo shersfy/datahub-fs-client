@@ -5,6 +5,7 @@ import java.io.InputStream;
 
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
+import org.apache.hadoop.io.BooleanWritable;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.Text;
 import org.shersfy.datahub.commons.meta.HdfsMeta;
@@ -27,8 +28,10 @@ public class FsClientController extends BaseController{
     public Object uploadLocal(String src, String tar) {
         FsStreamService service = client.getFsStreamService();
         service.connect(null);
-        service.createNewFile(new Text(FileUtil.concat(tar, FilenameUtils.getName(src))));
-        
+        BooleanWritable res = service.createNewFile(new Text(FileUtil.concat(tar, FilenameUtils.getName(src))));
+        if(!res.get()) {
+            return "error";
+        }
         try {
             BytesWritable bytes = new BytesWritable();
             InputStream input = new FileInputStream(src);
@@ -52,15 +55,20 @@ public class FsClientController extends BaseController{
     public Object uploadHdfs(String src, String tar) {
         FsStreamService service = client.getFsStreamService();
         HdfsMeta meta = new HdfsMeta();
-        meta.setUserName("hadoop");
+        meta.setUserName("hdfs");
         meta.setUrl("hdfs://192.168.186.129:9000/");
         service.connect(new Text(meta.toString()));
-        service.createNewFile(new Text(FileUtil.concat(tar, FilenameUtils.getName(src))));
-        
+        BooleanWritable res = service.createNewFile(new Text(FileUtil.concat(tar, FilenameUtils.getName(src))));
+        if(!res.get()) {
+            return "error";
+        }
         try {
             BytesWritable bytes = new BytesWritable(new byte[2048]);
             InputStream input = new FileInputStream(src);
-            while(input.read(bytes.getBytes())!=1) {
+            byte[] cache = new byte[2048];
+            int len = 0;
+            while((len = input.read(cache))!=-1) {
+                bytes.set(cache, 0, len);
                 service.write(bytes);
             }
             IOUtils.closeQuietly(input);
